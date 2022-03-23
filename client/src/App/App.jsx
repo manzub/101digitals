@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { connect, useDispatch } from "react-redux";
 import { useQuery } from 'react-query';
 import Loading from "../components/Loading";
 import Notice from "../components/Notice";
@@ -36,52 +36,35 @@ export class ErrorBoundary extends React.Component {
 }
 
 
-function App() {
-  const app = useSelector(state => state.app);
+function App({ loaded, chatroom }) {
   const dispatch = useDispatch();
-
-  const [connected, setConnected] = useState(false);
+  const myroomId = sessionId(); 
 
   // eslint-disable-next-line no-unused-vars
-  const services = useQuery('services', () => {
+  const [connected, setConnected] = useState(false);
+
+  useQuery('services', () => {
     return backendApi.getServices();
   }, { onSuccess: function(data) {
-    if(data.status === 1) {
-      dispatch({ type: 'LOADED', payload: { services: data.services } })
-    }
+    if(data.status === 1) dispatch({ type: 'LOADED', payload: { services: data.services } })
   } })
 
   useEffect(() => {
-    const myroomId = sessionId(); 
     const eventHandler = () => setConnected(!connected);
     socket.emit('connect-client', myroomId);
 
     socket.on('messages', (messages) => {
       dispatch({ type: 'SOCKET', payload: socket })
-      dispatch({ type: 'MESSAGES', payload: messages })
+      dispatch({ type: 'MESSAGES', payload: messages[chatroom ? chatroom : myroomId] || [] })
       eventHandler();
     });
-    socket.on('refresh-user', (transactions, notifications) => {
-      // dispatch({ type: 'REFRESH-USER', payload: { transactions, notifications } })
-    })
     return () => socket.off('messages', eventHandler);
   }, [])
-  
-  // useEffect(() => {
-  //   if(!app.loaded) {
-  //     backendApi.getServices().then(response => {
-  //       if(response.status === 1) {
-  //         return dispatch({ type: 'LOADED', payload: { services: response.services } });
-  //       }
-  //     })
-  //   }
-  // }, [dispatch, app])
-
 
   return (<div style={{fontFamily:'Montserrat'}} className='bg-white dark:bg-gray-700 transition-all min-h-screen'>
     {/* add loading and content widget */}
-    { app.loaded ? <Content /> : <Loading/>}
+    { loaded ? <Content /> : <Loading/>}
   </div>);
 }
 
-export default App;
+export default connect(state => state.app)(App);

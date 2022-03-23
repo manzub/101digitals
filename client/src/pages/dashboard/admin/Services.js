@@ -186,8 +186,8 @@ const Services = ({ user, services }) => {
               </div>
 
             </React.Fragment> : <React.Fragment>
-              { services?.map((item, idx) => (<React.Fragment>
-                <Disclosure key={idx} as='div' className='mt-2'>
+              { services?.map((item, idx) => (<React.Fragment key={idx}>
+                <Disclosure as='div' className='mt-2'>
                   {({ open }) => (<>
                     <Disclosure.Button className="flex justify-between w-full px-4 py-4 text-md font-medium text-left text-red-900 bg-red-100 rounded-lg hover:bg-red-200 focus:outline-none focus-visible:ring focus-visible:ring-red-500 focus-visible:ring-opacity-75">
                       <span>{item?.name}</span>

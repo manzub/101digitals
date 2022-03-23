@@ -122,20 +122,28 @@ const Landing = ({ services }) => {
         </div>
 
         <div className="mt-5 grid lg:grid-cols-3 md:grid-cols-2 gap-4">
-          <div className="shadow sm:rounded-md text-center">
-            <div className="bg-white dark:bg-gray-800 px-3 py-10">
-              {/* <UserCircleIcon className="h-[55px] inline text-red-600" /> */}
-              <div className="flex justify-center mb-5 -space-x-1 overflow-hidden">
-                <BitcoinBtcLogo className="inline-block h-[65px]" />
-                <EthereumEthLogo className="inline-block h-[65px]" />
-                <TetherUsdtLogo className="inline-block h-[65px]" />
+          {services?.map((item, idx) => (<React.Fragment key={idx}>
+            <div className="shadow sm:rounded-md text-center">
+              <div className="bg-white dark:bg-gray-800 px-3 py-10">
+                <div className="flex justify-center mb-5 -space-x-1 overflow-hidden">
+                {item.type === 'crypto' ? 
+                  <React.Fragment>
+                    <BitcoinBtcLogo className="inline-block h-[65px]" />
+                    <EthereumEthLogo className="inline-block h-[65px]" />
+                    <TetherUsdtLogo className="inline-block h-[65px]" />
+                  </React.Fragment> : 
+                  <CreditCardIcon className="h-[65px]" />
+                }
+                </div> 
+                <h3 className="font-bold dark:text-white">{item.name}</h3>
+                <p className='text-gray-400 hover:text-gray-600'>{item.denominations}</p>
+                <div className="my-4">
+                  <NavLink to="/dashboard/trade" className="p-3 bg-red-400 hover:bg-red-600">Trade Now</NavLink>
+                </div>
               </div>
-              <h3 className="font-bold dark:text-white">Bitcoin</h3>
-              <p className='text-gray-400 hover:text-gray-600'>$50 to $100 single</p>
-              <NavLink to="/dashboard" className="text-red-400 hover:text-red-600">Trade Now</NavLink>
             </div>
-          </div>
-        </div>
+          </React.Fragment>))}
+        </div>  
       </div>
     </main>
     <Footer />

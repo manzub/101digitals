@@ -4,12 +4,12 @@ const initialState = {
     password: null,
     role: null
   },
-  // TODO: config values e.g admin wallet address
   app: {
     loaded: false,
     socket: null,
     messages: null,
-    services: null
+    services: null,
+    chatroom: null
   }
 }
 

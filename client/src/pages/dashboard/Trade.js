@@ -1,6 +1,7 @@
 import { CheckIcon, ClipboardCopyIcon, CreditCardIcon, CurrencyDollarIcon, XIcon } from "@heroicons/react/outline";
 import axios from "axios";
-import React, { useState } from "react";
+import { v4 as uuidV4 } from 'uuid';
+import React, { useEffect, useState } from "react";
 import { connect, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { useClipboard } from 'use-clipboard-copy';
@@ -12,7 +13,7 @@ import { backendUrl } from "../../utils/backendApi";
 const termsNcondition = "You hereby warrant, assure, represent and state that the items you are transacting on, selling, loading or offering for sale on Mybtcnigeria.com was acquired through legal means. You further state that you did not in any manner act as agent of the Website in the acquisition of the items. You hereby, specifically state that the items were not stolen or obtained through fraudulent means Note: ₦10 bank transfer charge will be deducted on all withdrawals made on this platform. We won't be held responsible for funding a wrong Account Number provided by you. Pls always crosscheck the info you filled. By Clicking the \"Exchange Now\" button, you agree that you have read and agreed to our Terms of Service and you understand that all transfers are final and cannot be reversed.";
 // TODO: coin api options 
 
-const allowedRoles = [1, 2, 3]
+const allowedRoles = [3]
 const Trade = ({ user, services }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -29,6 +30,13 @@ const Trade = ({ user, services }) => {
   const isAdmin = user?.email && allowedRoles.includes(user?.role)
 
   const clearAync = () => setAsync(false);
+
+  useEffect(() => {
+    if(user?.bankInfo) {
+      const { accountNo, accountName, bank } = user?.bankInfo;
+      if(!(accountName && accountNo && bank)) setErrorState('Add Bank Info before trading')
+    } else setErrorState('Add Bank Info before trading');
+  }, [user?.bankInfo])
   
   const processSubmit = async () => {
     window.scrollTo(0, 0)
@@ -46,29 +54,39 @@ const Trade = ({ user, services }) => {
     })
     if(!errorFound) {
       try {
-        const data = new FormData();
-        for (let index = 0; index < form.uploads?.length; index++) {
-          const element = form.uploads[index];
-          data.append('file', element);
+        if(selected?.type !== 'crypto' && (!form.uploads || form.uploads.length < 1)) {
+          throw new Error('please upload '+selected?.type+' files');
         }
-        const response = (await axios.post(`${backendUrl}/trade/upload-files`, data, { headers: { 'x-access-token': user?.accessToken } })).data
-        if(response.status === 1) {
-          const files = [];
-          response.filename.forEach(item => files.push(item.filename))
-          const postData = { email: user?.email, serviceId: selected?._id, amountValue: form.amountValue, returnValue: form.returnValue, orderNotes: form.orderNotes, uploads: files };
-          const postResponse = (await axios.post(`${backendUrl}/trade/new-transaction`, postData, { headers: { 'x-access-token': user?.accessToken } })).data
-          if(postResponse.status === 0) throw new Error(postResponse.message);
-          // proceed
-          dispatch({ type: 'REFRESH-USER', payload: { transactions: postResponse.data.transactions, notifications: postResponse.data.notifications } })
-          setErrorState(postResponse.message);
-          clearAync();
-        } else throw new Error(response.message);
+
+        if(form.uploads?.length > 0) {
+          const data = new FormData();
+          for (let index = 0; index < form.uploads?.length; index++) {
+            const element = form.uploads[index];
+            data.append('file', element);
+          }
+          const response = (await axios.post(`${backendUrl}/trade/upload-files`, data, { headers: { 'x-access-token': user?.accessToken } })).data
+          if(response.status === 1) return createTrade(response.filename);
+          else throw new Error(response.message);
+        }
+        return createTrade([]);
       } catch (error) {
         console.log(error);
         setErrorState(error.message)
         clearAync();
       }
     }
+  }
+
+  const createTrade = async (uploadFiles) => {
+    const files = [];
+    uploadFiles.forEach(item => files.push(item.filename))
+    const postData = { txId: uuidV4(), email: user?.email, serviceId: selected?._id, amountValue: form.amountValue, returnValue: form.returnValue, orderNotes: form.orderNotes, uploads: files };
+    const postResponse = (await axios.post(`${backendUrl}/trade/new-transaction`, postData, { headers: { 'x-access-token': user?.accessToken } })).data
+    if(postResponse.status === 0) throw new Error(postResponse.message);
+    // proceed
+    dispatch({ type: 'REFRESH-USER', payload: { transactions: postResponse.data.transactions, notifications: postResponse.data.notifications } })
+    setErrorState(postResponse.message);
+    clearAync();
   }
 
   if(!isAdmin) {
@@ -80,7 +98,6 @@ const Trade = ({ user, services }) => {
       actionClicked={() => navigate('/')} />)
   }
 
-  // TODO: multiple file upload
   return(<React.Fragment>
     <AdminSidebar>
       {/* contents */}
@@ -102,7 +119,7 @@ const Trade = ({ user, services }) => {
               <div>
                 <label>Selected Service:</label>
                 <div className="relative">
-                  <input disabled value={selected?.name || ''} type="text" className="dark:bg-gray-700 shadow-sm focus:ring-red-500 focus:border-red-500 mt-1 block w-full sm:text-sm border border-gray-300 rounded-md" />
+                  <input disabled value={`${selected?.name} (${selected?.denominations})` || ''} type="text" className="dark:bg-gray-700 shadow-sm focus:ring-red-500 focus:border-red-500 mt-1 block w-full sm:text-sm border border-gray-300 rounded-md" />
                   <div onClick={() => updateSelected(null)} className=" absolute inset-y-0 right-0 flex items-center pr-5">
                     <XIcon className="hover:text-red-400 cursor-pointer text-gray-500 sm:text-sm h-6" />
                   </div>
@@ -126,10 +143,8 @@ const Trade = ({ user, services }) => {
                     <span className="text-gray-500 sm:text-sm h-6">USD</span>
                   </div>
                 </div>
-                {/* return value */}
                 <div>
-                  {/* if type is crypto */}
-                  <h5>Converted Value: <strong>0.00 COIN-NAME</strong></h5>
+                  { selected && selected?.type === 'crypto' && <h5>Converted Value: <strong>0.00 COIN-NAME</strong></h5>}
                   <h5>Return Value: <strong>N{new Intl.NumberFormat().format(form.returnValue)}</strong></h5>
                 </div>
               </div>
@@ -199,9 +214,12 @@ const Trade = ({ user, services }) => {
             <div className="grid md:grid-cols-2 gap-4">
               { services?.map((item, idx) => (<React.Fragment key={idx}>
                 <div onClick={() => updateSelected(item)} className="cursor-pointer shadow-md rounded-md bg-white hover:bg-gray-300 dark:bg-gray-800 dark:hover:bg-gray-900 p-3">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-10">
                     {item.type === 'crypto' ? <CurrencyDollarIcon className="h-6 dark:text-white" /> : <CreditCardIcon className="h-6 dark:text-white" />}
-                    <h4 className="dark:text-white">Bitcoin $50 - $100 single</h4>
+                    <div className="block">
+                      <h4 className="dark:text-white">{item.name}</h4>
+                      <p className="text-sm text-gray-300 hover:text-gray-700">{item.denominations}</p>
+                    </div>
                   </div>
                 </div>
               </React.Fragment>)) }

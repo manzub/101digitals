@@ -7,12 +7,12 @@ const bcrypt = require("bcryptjs");
 const authJwt = require("./app/middlewares/authJwt");
 const multer = require("multer");
 const path = require("path");
+const { user } = require("./app/models");
 
 const app = express();
 const server = http.createServer(app);
 const io = require('socket.io')(server, { cors: { origin: 'http://localhost:3000', methods: ["GET", "POST"], credentials: true, allowedHeaders: ["custom-header"] } });
 const User = db.user;
-// TODO: get chats from db onLoad
 const Chats = {};
 
 const storage = multer.diskStorage({
@@ -37,8 +37,8 @@ db.mongoose
   useUnifiedTopology: true
 }).then(()=> {
   console.log("Successfully connect to MongoDB.");
-  // TODO: create test user
   initializeDB();
+  loadChatsDB();
 }).catch((err) => {
   console.error("Connection error", err);
   process.exit();
@@ -48,28 +48,37 @@ function initializeDB() {
   // create test user if not exist
   User.estimatedDocumentCount((err, count) => {
     if(!err && count == 0) {
-      new User({ fullname: "John Doe", phone: "0800234590", email: "testuser@gmail.com",password: bcrypt.hashSync("test123", 8), role: 2 }).save((err, user) => {
+      new User({ fullname: "John Doe", phone: "0800234590", email: "testuser@gmail.com",password: bcrypt.hashSync("test123", 8), role: 3 }).save((err, user) => {
         if(err) {
           console.log(err);
           process.exit();
         }
 
-        const testNoti = { title: 'New Trade Created', message: 'You sent $100 giftcard to admin', type: 'trade' }
-        const testService = new db.services({ name: 'Bitcoin $50', denominations: 'Bitcoin $50', type: 'crypto', coinname: 'BTC', rate: '500' });
-        testService.save();
-        const testTx = { 
-          status: 'pending', 
-          service: testService,
-          type: 'trade', amountValue: '50', returnValue: '25000',
-          notes: 'Metamask - 0x76d96AaE20F26C40F1967aa86f96363F6907aEAB, https://etherscan.io/sdsdsdsdsdsdsd'
-        }
+        // const testNoti = { title: 'New Trade Created', message: 'You sent $100 giftcard to admin', type: 'trade' }
+        // const testService = new db.services({ name: 'Bitcoin $50', denominations: 'Bitcoin $50', type: 'crypto', coinname: 'BTC', rate: '500' });
+        // testService.save();
+        // const testTx = { 
+        //   status: 'pending', 
+        //   service: testService,
+        //   type: 'trade', amountValue: '50', returnValue: '25000',
+        //   notes: 'Metamask - 0x76d96AaE20F26C40F1967aa86f96363F6907aEAB, https://etherscan.io/sdsdsdsdsdsdsd'
+        // }
 
 
-        user.notifications = [testNoti]
-        user.transactions =  [testTx]
+        // user.notifications = [testNoti]
+        // user.transactions =  [testTx]
         user.save(() => console.log("Created test user"))
       })
     }
+  })
+}
+
+function loadChatsDB() {
+  db.chats.find({}).exec((err, msgs) => {
+    if(err) console.error(err);
+    msgs.forEach(item => {
+      Chats[item.roomId] = item.chats;
+    })
   })
 }
 
@@ -83,23 +92,20 @@ io.on("connection", (socket) => {
   app.set('socket.io', socket);
 
   socket.on('connect-client', (chatroom) => {
-    const key = Object.keys(Chats).find(x => x === chatroom)
-    const userChats = Object.values(Chats)[Object.keys(Chats).indexOf(chatroom)];
-    io.emit('messages', key ? userChats : []);
+    // const key = Object.keys(Chats).find(x => x === chatroom)
+    // const userChats = Object.values(Chats)[Object.keys(Chats).indexOf(chatroom)];
+    socket.emit('messages', Chats);
   })
 
   socket.on('room-messages', (chatroom) => {
-    io.emit('messages', Object.values(Chats)[Object.keys(Chats).indexOf(chatroom)]);
+    io.emit('messages', Chats);
   })
 
-  // TODO: fix chatroom
-  // TODO: save messages to db
   socket.on('send-message', ({ chatroom, sender, message }) => {
     const chatromId = Object.keys(Chats).find(x => x === chatroom)
     if(chatromId) {
       const conversations = Object.values(Chats)[Object.keys(Chats).indexOf(chatromId)];
       let lastConversation = conversations[conversations.length - 1];
-      console.log(lastConversation.sender);
       const senderObj = typeof(lastConversation.sender) == 'object';
       const isSender = senderObj ? lastConversation.sender.email == sender.email : lastConversation.sender == sender;
       if(lastConversation && isSender) {
@@ -109,11 +115,15 @@ io.on("connection", (socket) => {
         conversations.push({ sender, body: [message] });
         Chats[chatromId] = conversations;
       }
-      io.emit('messages', conversations)
+      db.chats.updateOne({ roomId: chatromId }, { chats: conversations }).exec((err) => console.error(err));
+      // io.emit('messages', conversations)
     }else {
       Chats[chatroom] = [{ sender, body: [message] }];
-      io.emit('messages', Object.values(Chats)[Object.keys(Chats).indexOf(chatroom)])
+      const new_convo = new db.chats({ roomId: chatroom, chats: [{ sender, body: [message] }] });
+      new_convo.save((err) => console.error(err));
+      // io.emit('messages', Object.values(Chats)[Object.keys(Chats).indexOf(chatroom)])
     }
+    io.emit('messages', Chats)
   })
 
   socket.on('disconnect', () => {
@@ -134,6 +144,28 @@ app.get('/services', (req, res) => {
   })
 })
 
+app.get('/admin/transactions', [authJwt.verifyToken, authJwt.isAdmin], (req, res) => {
+  User.find({}).exec((err, users) => {
+    if(err) return res.send({ status: 0, message: err });
+    const transactions = []
+    users.forEach(account => {
+      account.transactions.forEach(tx => {
+        transactions.push({ 
+          transaction: { ...tx }, 
+          userInfo: { 
+            fullname: account.fullname,
+            phone: account.phone,
+            email: account.email,
+            _id: account._id,
+            bankInfo: account.bankInfo
+          }  
+        })
+      })
+    })
+    return res.send({ status: 1, transactions })
+  })
+})
+
 app.post('/trade/upload-files', [authJwt.verifyToken], (req, res) => {
   const uplaod = multerUplaod.array('file');
   uplaod(req, res, function(err) {
@@ -150,7 +182,7 @@ app.post('/trade/new-transaction', [authJwt.verifyToken], (req, res) => {
     if(!user) return res.send({ status: 0, message: "User Not found." });
     // proceed
     db.services.findById({ _id: serviceId }).exec().then(service => {
-      const newTx = { status: 'pending', service, type: db.TransactionTypes.trade, amountValue, returnValue, notes: orderNotes, uploads };
+      const newTx = { id:req.body?.txId, status: 'pending', service, type: db.TransactionTypes.trade, amountValue, returnValue, notes: orderNotes, uploads };
       user.transactions.push(newTx);
       user.notifications.push({ title: 'New Trade created', message: `You sent $${amountValue} ${service.name} to admin`, type: db.TransactionTypes.trade })
       user.save(() => res.send({ status: 1, message: "New Transaction recorded", data: user }))

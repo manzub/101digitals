@@ -19,6 +19,8 @@ export function appReducer(state = initialState.app, action) {
       return { ...state, socket:action.payload };
     case 'MESSAGES':
       return { ...state, messages: action.payload };
+    case 'CONNECT_ROOM':
+      return { ...state, chatroom: action.payload };
     case 'LOADING':
       return { ...state, loaded: false }
     case 'LOADED':

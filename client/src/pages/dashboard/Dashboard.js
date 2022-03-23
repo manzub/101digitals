@@ -6,6 +6,7 @@ import ChatWith from "../../components/ChatWith";
 import Notice from "../../components/Notice";
 import { useNavigate } from "react-router-dom";
 
+// TODO: admin dashboard
 const allowedRoles = [1, 2, 3]
 const Dashboard = () => {
   const { user } = useSelector(state => state);
@@ -38,6 +39,7 @@ const Dashboard = () => {
                     <div className="block">
                       <h2 className="dark:text-white">{ item.type === 'trade' ? 'Transfered' : '' } <strong>${item.amountValue}</strong></h2>
                       <p style={{fontSize:10}} className='text-gray-400'>{item.service.name}</p>
+                      <small>status: <label className={item.status === 'completed' ? 'bg-success' : 'bg-yellow-400'}>{item.status}</label></small>
                     </div>
                   </div>
                 )) }
@@ -45,6 +47,7 @@ const Dashboard = () => {
             </div>
           </div> 
 
+          {/* TODO: activity log */}
           <div className="shadow-sm rounded-md bg-white dark:bg-gray-800 py-2 px-3">
             <h3 className="dark:text-white">Activity Log (10)</h3>
             <hr/>

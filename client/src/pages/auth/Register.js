@@ -20,7 +20,7 @@ const Register = ({ user }) => {
   const mutation = useMutation(function(postData) {
     const { email, fullname, phone, password } = postData;
     if(!(email && fullname && phone && password)) throw new Error('Fill in all fields');
-    return backendApi.signup(postData);
+    return backendApi.signup({...postData, email:email.toLowerCase()});
   }, { onSuccess: function(data, variables, context) {
     if(data.status === 1) {
       setSubmitState(true);

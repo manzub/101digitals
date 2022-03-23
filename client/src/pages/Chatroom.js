@@ -9,14 +9,14 @@ import backendApi from "../utils/backendApi";
 
 const adminRoles = { superAdmin: 1, attendant: 2, customer: 3 };
 
-const Chatroom = ({ user, messages, socket }) => {
+const Chatroom = ({ user, messages, socket, chatroom }) => {
   const isLoggedIn = !!(user?.email && [1, 2].includes(user?.role));
 
   const { token, clearToken } = useToken();
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const [chatroom, selectChatroom] = useState(null);
+  // const [chatroom, selectChatroom] = useState(null);
   const [rooms, updateRooms] = useState(null);
   const myroomId = sessionId();
 
@@ -41,13 +41,19 @@ const Chatroom = ({ user, messages, socket }) => {
 
   const sendMessage = () => {
     let chatroomId = chatroom || myroomId
-    socket?.emit('send-message', {chatroom: chatroomId, sender: isLoggedIn && chatroom ? { email: user?.email, role: user?.role } : myroomId, message: message});
+    const sender = isLoggedIn && chatroom ? { email: user?.email, role: user?.role } : myroomId;
+    socket?.emit('send-message', {chatroom: chatroomId, sender, message: message});
     updateMessage("");
   }
 
+  // TODO: fix socket
   const connectRoom = (roomId) => {
-    socket?.emit('room-messages', roomId);
     selectChatroom(roomId);
+    socket?.emit('room-messages');
+  }
+
+  const selectChatroom = (roomId) => {
+    dispatch({ type: 'CONNECT_ROOM', payload: roomId })
   }
 
   return(<React.Fragment>
@@ -64,17 +70,17 @@ const Chatroom = ({ user, messages, socket }) => {
           
           <div className="flex ml-auto">
           <div className="">
-              { chatroom ? <span onClick={() => selectChatroom(null)} className="flex flex-row items-center">
-                Chating With: <XIcon className="cursor-pointer h-[35px] text-gray-600 dark:text-white" />
+              {/* { chatroom ? <span onClick={() => selectChatroom(null)} className="flex flex-row items-center"> */}
+              { chatroom ? <span onClick={() => window.location.reload()} className="flex flex-row items-center">
+                Chating With: <span className="p-3 bg-yellow-400 rounded-lg">{chatroom.substr(0, 10)}...</span> <XIcon className="cursor-pointer h-[35px] text-gray-600 dark:text-white" />
               </span> : null}
             </div>
             <div className="">
               {/* change action */}
-              <NavLink to="/profile" className="flex flex-row items-center">
+              <NavLink to="/dashboard/profile" className="flex flex-row items-center">
                 <UserCircleIcon className="h-[35px] text-gray-600 dark:text-white" />
                 <span className="flex flex-col ml-2">
                   <span className="truncate w-20 font-semibold dark:text-white tracking-wide leading-none">{user?.fullname || 'Anonymous'}</span>
-                  {/* TODO: add user role */}
                   <span className="truncate w-20 text-gray-500 dark:text-white text-xs leading-none mt-1">{Object.keys(adminRoles)[Object.values(adminRoles).indexOf(user?.role)] || 'Guest'}</span>
                 </span>
               </NavLink>
@@ -139,4 +145,4 @@ const Chatroom = ({ user, messages, socket }) => {
   </React.Fragment>)
 }
 
-export default connect((state) => ({ user: state.user, messages: state.app.messages, socket: state.app.socket }))(Chatroom);
+export default connect((state) => ({ user: state.user, ...state.app }))(Chatroom);

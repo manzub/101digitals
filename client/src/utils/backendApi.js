@@ -47,6 +47,11 @@ const adminFunctions = {
     const response = await axios.post(`${backendUrl}/admin/service/delete`, itemId, { headers: {  'x-access-token': token } })
     return response.data;
   },
+  // transactions
+  async updateTransaction(postData, token) {
+    const response = await axios.post(`${backendUrl}/admin/transaction/update-status`, postData, { headers: {  'x-access-token': token } })
+    return response.data;
+  },
 }
 
 const backendApi = {
@@ -56,6 +61,10 @@ const backendApi = {
   ...adminFunctions,
   async getServices() {
     const response = await axios.get(`${backendUrl}/services`)
+    return response.data;
+  },
+  async allTransactions(token) {
+    const response = await axios.get(`${backendUrl}/admin/transactions`, { headers: { 'x-access-token': token } })
     return response.data;
   },
   async getChatrooms(token) {

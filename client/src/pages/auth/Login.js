@@ -20,7 +20,7 @@ const Login = ({ user }) => {
 
   const mutation = useMutation(function(postData) {
     if(!(postData.email && postData.password)) throw new Error('Fill in all fields');
-    return backendApi.signin(postData.email, postData.password);
+    return backendApi.signin(postData.email.toLowerCase(), postData.password);
   }, { onSuccess: function(data, variables, context) {
     if(data.status === 1) {
       setToken(data.accessToken);
