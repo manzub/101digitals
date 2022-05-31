@@ -7,11 +7,19 @@ const bcrypt = require("bcryptjs");
 const authJwt = require("./app/middlewares/authJwt");
 const multer = require("multer");
 const path = require("path");
-const { user } = require("./app/models");
 
 const app = express();
 const server = http.createServer(app);
-const io = require('socket.io')(server, { cors: { origin: 'http://localhost:3000', methods: ["GET", "POST"], credentials: true, allowedHeaders: ["custom-header"] } });
+const io = require('socket.io')(server, { 
+  cors: { 
+    origin: 'http://localhost:3000', 
+    methods: ["GET", "POST"], 
+    credentials: true, 
+    allowedHeaders: ["custom-header"] 
+  },
+  secure: true,
+  rejectUnauthorized: false
+});
 const User = db.user;
 const Chats = {};
 

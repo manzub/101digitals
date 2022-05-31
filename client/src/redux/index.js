@@ -9,7 +9,7 @@ const allReducers = combineReducers({
   app: appReducer
 });
 
-// const store = createStore(allReducers, compose(applyMiddleware(thunk)));
-const store = createStore(allReducers, compose(applyMiddleware(thunk), composeWithDevTools()));
+const store = createStore(allReducers, compose(applyMiddleware(thunk)));
+// const store = createStore(allReducers, compose(applyMiddleware(thunk), composeWithDevTools()));
 
 export default store;
